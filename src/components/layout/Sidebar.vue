@@ -41,6 +41,11 @@
             path: '/jobs',
             icon: 'briefcase',
         },
+        {
+            name: 'Invites',
+            path: '/invites',
+            icon: 'mail',
+        },
     ];
 
     function isActive(path: string): boolean {

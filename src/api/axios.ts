@@ -1,6 +1,24 @@
 import axios from 'axios';
+import type { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+
+const ACCESS_TOKEN_KEY = 'brisk_access_token';
+const REFRESH_TOKEN_KEY = 'brisk_refresh_token';
+
+// Public endpoints that don't require auth
+const PUBLIC_ENDPOINTS = [
+    '/auth/login',
+    '/auth/register',
+    '/auth/refresh',
+    '/auth/validate-invite',
+    '/jobs', // Public job listings
+];
+
+function isPublicEndpoint(url: string | undefined): boolean {
+    if (!url) return false;
+    return PUBLIC_ENDPOINTS.some((endpoint) => url.includes(endpoint));
+}
 
 export const axiosInstance = axios.create({
     baseURL: API_BASE_URL,
@@ -10,10 +28,30 @@ export const axiosInstance = axios.create({
     timeout: 60000,
 });
 
-// Request interceptor
+let isRefreshing = false;
+let failedQueue: Array<{
+    resolve: (token: string) => void;
+    reject: (error: unknown) => void;
+}> = [];
+
+function processQueue(error: unknown, token: string | null = null) {
+    failedQueue.forEach((prom) => {
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve(token!);
+        }
+    });
+    failedQueue = [];
+}
+
+// Request interceptor - Add auth header
 axiosInstance.interceptors.request.use(
     (config) => {
-        // Add any auth headers here if needed in the future
+        const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+        if (token && !isPublicEndpoint(config.url)) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
         return config;
     },
     (error) => {
@@ -21,18 +59,78 @@ axiosInstance.interceptors.request.use(
     }
 );
 
-// Response interceptor
+// Response interceptor - Handle 401 and refresh token
 axiosInstance.interceptors.response.use(
     (response) => {
         return response;
     },
-    (error) => {
-        // Handle common errors
+    async (error: AxiosError) => {
+        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+
+        // Handle 401 errors
+        if (error.response?.status === 401 && !originalRequest._retry) {
+            // Don't try to refresh for auth endpoints
+            if (isPublicEndpoint(originalRequest.url)) {
+                return Promise.reject(error);
+            }
+
+            if (isRefreshing) {
+                // Wait for the refresh to complete
+                return new Promise((resolve, reject) => {
+                    failedQueue.push({ resolve, reject });
+                })
+                    .then((token) => {
+                        originalRequest.headers.Authorization = `Bearer ${token}`;
+                        return axiosInstance(originalRequest);
+                    })
+                    .catch((err) => {
+                        return Promise.reject(err);
+                    });
+            }
+
+            originalRequest._retry = true;
+            isRefreshing = true;
+
+            const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+
+            if (!refreshToken) {
+                isRefreshing = false;
+                // Clear tokens and redirect to login
+                localStorage.removeItem(ACCESS_TOKEN_KEY);
+                localStorage.removeItem(REFRESH_TOKEN_KEY);
+                window.location.href = '/login';
+                return Promise.reject(error);
+            }
+
+            try {
+                const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+                    refresh_token: refreshToken,
+                });
+
+                const { access_token, refresh_token } = response.data;
+                localStorage.setItem(ACCESS_TOKEN_KEY, access_token);
+                localStorage.setItem(REFRESH_TOKEN_KEY, refresh_token);
+
+                processQueue(null, access_token);
+
+                originalRequest.headers.Authorization = `Bearer ${access_token}`;
+                return axiosInstance(originalRequest);
+            } catch (refreshError) {
+                processQueue(refreshError, null);
+                // Clear tokens and redirect to login
+                localStorage.removeItem(ACCESS_TOKEN_KEY);
+                localStorage.removeItem(REFRESH_TOKEN_KEY);
+                window.location.href = '/login';
+                return Promise.reject(refreshError);
+            } finally {
+                isRefreshing = false;
+            }
+        }
+
+        // Log other errors
         if (error.response) {
             const { status, data } = error.response;
-
-            // You can add common error handling here
-            console.error(`API Error [${status}]:`, data?.detail || 'Unknown error');
+            console.error(`API Error [${status}]:`, (data as { detail?: string })?.detail || 'Unknown error');
         }
 
         return Promise.reject(error);

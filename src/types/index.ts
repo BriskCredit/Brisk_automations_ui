@@ -241,3 +241,61 @@ export interface BulkRejectResponse {
     rejected_count: number;
     message: string;
 }
+
+// ============================================
+// Authentication Types
+// ============================================
+export interface LoginRequest {
+    email: string;
+    password: string;
+}
+
+export interface RegisterRequest {
+    email: string;
+    password: string;
+    name: string;
+    invite_code: string;
+}
+
+export interface RefreshRequest {
+    refresh_token: string;
+}
+
+export interface TokenResponse {
+    access_token: string;
+    refresh_token: string;
+    token_type: string;
+}
+
+export interface UserResponse {
+    id: number;
+    email: string;
+    name: string | null;
+    is_active: boolean;
+    created_at: string;
+}
+
+export interface ValidateInviteResponse {
+    valid: boolean;
+    message: string;
+}
+
+export interface CreateInviteRequest {
+    invitee_email: string;
+    inviter_ip?: string;
+    inviter_user_agent?: string;
+}
+
+export interface InviteResponse {
+    id: number;
+    code: string;
+    invitee_email: string | null;
+    is_used: boolean;
+    created_at: string;
+    expires_at: string;
+    used_at: string | null;
+}
+
+export interface AuthErrorResponse {
+    detail: string;
+}
