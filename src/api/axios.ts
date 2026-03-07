@@ -12,12 +12,12 @@ const PUBLIC_ENDPOINTS = [
     '/auth/register',
     '/auth/refresh',
     '/auth/validate-invite',
-    '/jobs', // Public job listings
-];
+    '/public/jobs', // Public job listings
+]; 
 
 function isPublicEndpoint(url: string | undefined): boolean {
     if (!url) return false;
-    return PUBLIC_ENDPOINTS.some((endpoint) => url.includes(endpoint));
+    return PUBLIC_ENDPOINTS.some((endpoint) => url.startsWith(endpoint) || url.includes(endpoint + '/') || url === endpoint);
 }
 
 export const axiosInstance = axios.create({
