@@ -2,6 +2,7 @@
     import { ref, computed } from 'vue';
     import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
     import { filesService } from '@/api/services';
+    import { fixFileUrl } from '@/api/axios';
     import { useNotificationStore } from '@/stores';
     import { Badge, Spinner, Modal, ConfirmDialog } from '@/components/common';
     import RecipientsDrawer from './RecipientsDrawer.vue';
@@ -407,7 +408,7 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right">
                                 <a
-                                    :href="file.file_url"
+                                    :href="fixFileUrl(file.file_url)"
                                     target="_blank"
                                     class="text-primary-600 hover:text-primary-800 text-sm font-medium"
                                 >

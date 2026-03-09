@@ -3,6 +3,18 @@ import type { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
 
+// Extract the server origin from API_BASE_URL (e.g., "http://187.77.168.146:8000" from "http://187.77.168.146:8000/api/v1")
+const API_ORIGIN = new URL(API_BASE_URL).origin;
+
+/**
+ * Fix file URLs that may contain localhost instead of the actual server URL
+ */
+export function fixFileUrl(url: string): string {
+    if (!url) return url;
+    // Replace localhost:8000 with the actual server origin
+    return url.replace(/http:\/\/localhost:8000/g, API_ORIGIN);
+}
+
 const ACCESS_TOKEN_KEY = 'brisk_access_token';
 const REFRESH_TOKEN_KEY = 'brisk_refresh_token';
 

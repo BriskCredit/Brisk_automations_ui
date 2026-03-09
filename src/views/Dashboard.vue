@@ -2,6 +2,7 @@
     import { computed } from 'vue';
     import { useQuery } from '@tanstack/vue-query';
     import { reportTypesService, recipientsService, filesService } from '@/api/services';
+    import { fixFileUrl } from '@/api/axios';
     import { StatsCard } from '@/components/common';
     import type { ReportTypeResponse } from '@/types';
 
@@ -185,7 +186,7 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right">
                                 <a
-                                    :href="file.file_url"
+                                    :href="fixFileUrl(file.file_url)"
                                     target="_blank"
                                     class="text-primary-600 hover:text-primary-800 text-sm font-medium"
                                 >
